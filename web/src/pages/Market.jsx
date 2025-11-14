@@ -311,6 +311,7 @@ export default function Market() {
                 <th className="text-right py-3 px-4 text-sm font-semibold">Price</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold">Change</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold">Change %</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold">Source</th>
               </tr>
             </thead>
             <tbody>
@@ -340,6 +341,15 @@ export default function Market() {
                     (coin.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {(coin.changePercent || 0) >= 0 ? '+' : ''}{((coin.changePercent || 0)).toFixed(2)}%
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      coin.isReal 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                    }`}>
+                      {coin.source || 'Unknown'}
+                    </span>
                   </td>
                 </tr>
               ))}
