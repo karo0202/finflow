@@ -277,6 +277,74 @@ export default function Budget() {
         </div>
       </div>
 
+      {/* Salary/Income Setting */}
+      <div className="card bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+              <DollarSign className="mr-2 text-green-600" size={20} />
+              Monthly Income (Salary)
+            </h2>
+            {editingSalary ? (
+              <div className="flex items-center space-x-2">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    value={salaryInput}
+                    onChange={(e) => setSalaryInput(e.target.value)}
+                    placeholder="Enter monthly salary"
+                    className="input-field"
+                    min="0"
+                    step="0.01"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveSalary()
+                      } else if (e.key === 'Escape') {
+                        handleCancelEditSalary()
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleSaveSalary}
+                  className="btn-primary flex items-center space-x-1 px-4"
+                >
+                  <Save size={18} />
+                  <span>Save</span>
+                </button>
+                <button
+                  onClick={handleCancelEditSalary}
+                  className="btn-secondary px-4"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                    ${budget.income.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {budget.income === 0 
+                      ? 'Set your monthly salary to track your budget accurately'
+                      : 'Click Edit to update your monthly income'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleEditSalary}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <Edit2 size={18} />
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Budget Overview */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="card">
