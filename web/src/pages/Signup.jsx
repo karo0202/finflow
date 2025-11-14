@@ -53,21 +53,21 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-center text-primary-600 mb-2">FinFlow</h1>
-          <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold gradient-text mb-2">FinFlow</h1>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Create your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 underline">
               Sign in
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 sm:mt-8 space-y-5 sm:space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -80,10 +80,11 @@ export default function Signup() {
                   name="displayName"
                   type="text"
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 text-base"
                   placeholder="John Doe"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
+                  autoCapitalize="words"
                 />
               </div>
             </div>
@@ -99,10 +100,11 @@ export default function Signup() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 text-base"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  inputMode="email"
                 />
               </div>
             </div>
@@ -118,7 +120,7 @@ export default function Signup() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 text-base"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -137,7 +139,7 @@ export default function Signup() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 text-base"
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -150,7 +152,7 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-primary flex items-center justify-center"
+              className="w-full btn-primary flex items-center justify-center min-h-[48px] text-base"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -176,7 +178,7 @@ export default function Signup() {
             type="button"
             onClick={handleGoogleSignup}
             disabled={loading}
-            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center justify-center px-4 py-3 sm:py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-base font-medium min-h-[44px]"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
