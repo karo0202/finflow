@@ -1,0 +1,26 @@
+{
+  "name": "finflow",
+  "version": "1.0.0",
+  "description": "AI-Powered Personal Finance Coach",
+  "private": true,
+  "workspaces": [
+    "web",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:web": "cd web && npm run dev",
+    "dev:mobile": "cd mobile && npm run start",
+    "build:web": "cd web && npm run build",
+    "build:mobile": "cd mobile && npm run build"
+  },
+  "keywords": [
+    "finance",
+    "investment",
+    "ai",
+    "react",
+    "react-native"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
