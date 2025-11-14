@@ -46,11 +46,11 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass-effect border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-xl font-bold text-primary-600">FinFlow</h1>
+          <h1 className="text-xl font-bold gradient-text">FinFlow</h1>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -95,12 +95,12 @@ export default function Layout({ children }) {
         )}
       </AnimatePresence>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-5 pb-4 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4">
-            <h1 className="text-2xl font-bold text-primary-600">FinFlow</h1>
-          </div>
+          {/* Desktop sidebar */}
+          <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 lg:flex-col">
+            <div className="flex flex-col flex-grow glass-effect border-r border-gray-200/50 dark:border-gray-700/50 pt-5 pb-4 overflow-y-auto shadow-xl">
+              <div className="flex items-center flex-shrink-0 px-4">
+                <h1 className="text-2xl font-bold gradient-text">FinFlow</h1>
+              </div>
           <nav className="mt-8 flex-1 px-4 space-y-2">
             {navigation.map((item) => {
               const Icon = item.icon
@@ -124,7 +124,7 @@ export default function Layout({ children }) {
           
           {/* User section */}
           <div className="px-4 pb-4 space-y-2">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between px-4 py-2 glass-effect rounded-xl shadow-md">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
                   {user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}

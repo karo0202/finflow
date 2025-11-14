@@ -128,22 +128,22 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Welcome back, {user?.displayName || 'User'}!
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          Welcome back, <span className="gradient-text">{user?.displayName || 'User'}</span>!
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
+        <p className="text-gray-600 dark:text-gray-400 text-lg">
           Here's your financial overview
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon
           return (
-            <div key={stat.name} className="card">
+            <div key={stat.name} className="card hover-lift glow-effect" style={{ animationDelay: `${index * 0.1}s` }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{stat.name}</p>
@@ -176,8 +176,8 @@ export default function Dashboard() {
       {/* Charts Row */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Portfolio Growth Chart */}
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Portfolio Growth</h2>
+        <div className="card hover-lift">
+          <h2 className="text-xl font-semibold mb-4 gradient-text">Portfolio Growth</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={portfolioData}>
               <defs>
@@ -208,8 +208,8 @@ export default function Dashboard() {
         </div>
 
         {/* Asset Allocation */}
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Asset Allocation</h2>
+        <div className="card hover-lift">
+          <h2 className="text-xl font-semibold mb-4 gradient-text">Asset Allocation</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -251,8 +251,8 @@ export default function Dashboard() {
       {/* Recent Transactions & Goals */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Transactions */}
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
+        <div className="card hover-lift">
+          <h2 className="text-xl font-semibold mb-4 gradient-text">Recent Transactions</h2>
           <div className="space-y-3">
             {transactions.map((transaction) => (
               <div
@@ -280,8 +280,8 @@ export default function Dashboard() {
         </div>
 
         {/* Active Goals */}
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Active Goals</h2>
+        <div className="card hover-lift">
+          <h2 className="text-xl font-semibold mb-4 gradient-text">Active Goals</h2>
           <div className="space-y-4">
             {goals.map((goal) => {
               const progress = (goal.current / goal.target) * 100
