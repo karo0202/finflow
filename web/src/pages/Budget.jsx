@@ -497,26 +497,28 @@ export default function Budget() {
               No transactions match your search criteria.
             </p>
           ) : (
-            filteredTransactions.map((transaction) => (
-            <div
-              key={transaction.id}
-              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-            >
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {transaction.category} • {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <p
-                className={`font-semibold ${
-                  transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {transaction.amount > 0 ? '+' : ''}${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            ))
+            <>
+              {filteredTransactions.map((transaction) => (
+                <div
+                  key={transaction.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {transaction.category} • {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <p
+                    className={`font-semibold ${
+                      transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {transaction.amount > 0 ? '+' : ''}${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
