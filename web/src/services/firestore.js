@@ -151,21 +151,81 @@ export const addTransaction = async (userId, transaction) => {
 export const getGoals = async (userId) => {
   try {
     const goalsRef = collection(db, 'goals')
-    const q = query(
-      goalsRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    )
-    const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map(doc => ({
+    // Try with orderBy first, fallback to without if index doesn't exist
+    let querySnapshot
+    try {
+      const q = query(
+        goalsRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      )
+      querySnapshot = await getDocs(q)
+    } catch (indexError) {
+      // If index doesn't exist, query without orderBy and sort client-side
+      console.warn('Firestore index not found, sorting client-side:', indexError.message)
+      const q = query(
+        goalsRef,
+        where('userId', '==', userId)
+      )
+      querySnapshot = await getDocs(q)
+    }
+    
+    const goals = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       deadline: doc.data().deadline?.toDate?.() || doc.data().deadline,
       createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
     }))
+    
+    // Sort client-side if orderBy wasn't used (fallback case)
+    // Check if goals need sorting by checking if they're already sorted
+    const needsSort = goals.some((goal, index) => {
+      if (index === 0) return false
+      const prevDate = goals[index - 1].createdAt instanceof Date 
+        ? goals[index - 1].createdAt 
+        : new Date(goals[index - 1].createdAt || 0)
+      const currDate = goal.createdAt instanceof Date 
+        ? goal.createdAt 
+        : new Date(goal.createdAt || 0)
+      return currDate > prevDate
+    })
+    
+    if (needsSort) {
+      goals.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt || 0)
+        const bDate = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt || 0)
+        return bDate - aDate // Descending order
+      })
+    }
+    
+    return goals
   } catch (error) {
     console.error('Error getting goals:', error)
-    return []
+    // Final fallback: try without orderBy
+    try {
+      const goalsRef = collection(db, 'goals')
+      const q = query(
+        goalsRef,
+        where('userId', '==', userId)
+      )
+      const querySnapshot = await getDocs(q)
+      const goals = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        deadline: doc.data().deadline?.toDate?.() || doc.data().deadline,
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      }))
+      // Sort client-side
+      goals.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt || 0)
+        const bDate = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt || 0)
+        return bDate - aDate
+      })
+      return goals
+    } catch (fallbackError) {
+      console.error('Error getting goals (fallback):', fallbackError)
+      return []
+    }
   }
 }
 

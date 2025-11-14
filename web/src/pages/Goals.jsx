@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getGoals, addGoal, updateGoal, deleteGoal } from '../services/firestore'
 import { Plus, Target, Calendar, DollarSign, TrendingUp, X, Download, FileText } from 'lucide-react'
 import SearchFilter from '../components/SearchFilter'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { generateGoalsPDF } from '../utils/pdfExport'
 import toast from 'react-hot-toast'
 
