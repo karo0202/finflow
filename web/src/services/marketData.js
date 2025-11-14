@@ -55,19 +55,41 @@ export const getStockPrice = async (symbol) => {
 
 export const getCryptoPrice = async (symbol) => {
   try {
+    // Map common crypto symbols to CoinGecko IDs
+    const cryptoIdMap = {
+      'btc': 'bitcoin',
+      'eth': 'ethereum',
+      'sol': 'solana',
+      'ada': 'cardano',
+      'dot': 'polkadot',
+      'matic': 'matic-network',
+      'bnb': 'binancecoin',
+      'xrp': 'ripple',
+      'doge': 'dogecoin',
+      'avax': 'avalanche-2',
+      'link': 'chainlink',
+      'ltc': 'litecoin',
+    }
+
+    const cryptoId = cryptoIdMap[symbol.toLowerCase()] || symbol.toLowerCase()
+    
     // Using CoinGecko API (free, no API key needed)
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${symbol.toLowerCase()}&vs_currencies=usd&include_24hr_change=true`
+      `https://api.coingecko.com/api/v3/simple/price?ids=${cryptoId}&vs_currencies=usd&include_24hr_change=true`
     )
     const data = await response.json()
 
-    if (data[symbol.toLowerCase()]) {
-      const crypto = data[symbol.toLowerCase()]
+    if (data[cryptoId]) {
+      const crypto = data[cryptoId]
+      const price = crypto.usd
+      const changePercent = crypto.usd_24h_change || 0
+      const change = (price * changePercent) / 100
+      
       return {
         symbol: symbol.toUpperCase(),
-        price: crypto.usd,
-        change: crypto.usd_24h_change || 0,
-        changePercent: crypto.usd_24h_change || 0,
+        price: price,
+        change: change,
+        changePercent: changePercent,
         timestamp: new Date().toISOString(),
       }
     }

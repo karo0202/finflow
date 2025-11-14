@@ -17,6 +17,7 @@ import Community from './pages/Community'
 import AICoach from './pages/AICoach'
 import Settings from './pages/Settings'
 import Pricing from './pages/Pricing'
+import Market from './pages/Market'
 
 // Layout
 import Layout from './components/Layout'
@@ -51,6 +52,7 @@ function AppRoutes() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/portfolio" element={<Portfolio />} />
+                <Route path="/market" element={<Market />} />
                 <Route path="/budget" element={<Budget />} />
                 <Route path="/goals" element={<Goals />} />
                 <Route path="/learning" element={<LearningHub />} />

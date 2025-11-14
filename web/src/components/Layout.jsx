@@ -14,7 +14,8 @@ import {
   Sun,
   LogOut,
   Menu,
-  X
+  X,
+  BarChart3
 } from 'lucide-react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -28,6 +29,7 @@ export default function Layout({ children }) {
   const navigation = [
     { name: 'Dashboard', href: '/app', icon: Home },
     { name: 'Portfolio', href: '/app/portfolio', icon: TrendingUp },
+    { name: 'Market', href: '/app/market', icon: BarChart3 },
     { name: 'Budget', href: '/app/budget', icon: Wallet },
     { name: 'Goals', href: '/app/goals', icon: Target },
     { name: 'Learning', href: '/app/learning', icon: BookOpen },
