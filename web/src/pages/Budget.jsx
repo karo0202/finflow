@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getBudget, getTransactions, addTransaction } from '../services/firestore'
-import { Plus, DollarSign, TrendingDown, TrendingUp, X } from 'lucide-react'
+import { getBudget, getTransactions, addTransaction, getRecurringTransactions } from '../services/firestore'
+import { Plus, DollarSign, TrendingDown, TrendingUp, X, Download, FileText, Repeat } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import SearchFilter from '../components/SearchFilter'
+import RecurringTransactionModal from '../components/RecurringTransactionModal'
+import { exportTransactionsToCSV } from '../utils/export'
+import { generateTransactionsPDF } from '../utils/pdfExport'
+import { validateAmount } from '../utils/validation'
+import { addRecurringTransaction } from '../services/firestore'
 import toast from 'react-hot-toast'
 
 const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
@@ -24,10 +30,26 @@ export default function Budget() {
     type: 'expense',
     date: new Date().toISOString().split('T')[0],
   })
+  const [formErrors, setFormErrors] = useState({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterCategory, setFilterCategory] = useState(null)
+  const [showRecurringModal, setShowRecurringModal] = useState(false)
+  const [recurringTransactions, setRecurringTransactions] = useState([])
 
   useEffect(() => {
     fetchBudgetData()
+    fetchRecurringTransactions()
   }, [user])
+
+  const fetchRecurringTransactions = async () => {
+    if (!user) return
+    try {
+      const recurring = await getRecurringTransactions(user.uid)
+      setRecurringTransactions(recurring)
+    } catch (error) {
+      console.error('Error fetching recurring transactions:', error)
+    }
+  }
 
   const fetchBudgetData = async () => {
     if (!user) {
@@ -72,10 +94,26 @@ export default function Budget() {
     e.preventDefault()
     if (!user) return
 
+    // Validate
+    const errors = {}
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required'
+    }
+    const amountValidation = validateAmount(formData.amount)
+    if (!amountValidation.valid) {
+      errors.amount = amountValidation.message
+    }
+    
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix form errors')
+      return
+    }
+
     try {
       const amount = parseFloat(formData.amount)
       await addTransaction(user.uid, {
-        description: formData.description,
+        description: formData.description.trim(),
         amount: formData.type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
         category: formData.category,
         type: formData.type,
@@ -90,16 +128,37 @@ export default function Budget() {
         type: 'expense',
         date: new Date().toISOString().split('T')[0],
       })
+      setFormErrors({})
       fetchBudgetData()
     } catch (error) {
       console.error('Error adding transaction:', error)
-      toast.error('Failed to add transaction')
+      toast.error(error.message || 'Failed to add transaction')
     }
   }
 
+  const handleSaveRecurring = async (recurringData) => {
+    if (!user) return
+    await addRecurringTransaction(user.uid, recurringData)
+    await fetchRecurringTransactions()
+  }
+
+  // Filter transactions
+  const filteredTransactions = transactions.filter(transaction => {
+    const matchesSearch = searchTerm === '' || 
+      transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = filterCategory === null || transaction.category === filterCategory
+    
+    return matchesSearch && matchesFilter
+  })
+
+  // Get unique categories for filter
+  const categories = [...new Set(transactions.map(t => t.category))]
+
   // Calculate categories from transactions
   const categoryMap = {}
-  transactions
+  filteredTransactions
     .filter(t => t.type === 'expense' || t.amount < 0)
     .forEach(t => {
       const cat = t.category || 'Other'
@@ -138,13 +197,48 @@ export default function Budget() {
             Track your income and expenses
           </p>
         </div>
-        <button 
-          onClick={() => setShowAddForm(true)}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>Add Transaction</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button 
+              onClick={() => exportTransactionsToCSV(transactions)}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={transactions.length === 0}
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  await generateTransactionsPDF(transactions, budget)
+                  toast.success('PDF generated!')
+                } catch (error) {
+                  toast.error('Failed to generate PDF')
+                }
+              }}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={transactions.length === 0}
+            >
+              <FileText size={18} />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            <button 
+              onClick={() => setShowRecurringModal(true)}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+            >
+              <Repeat size={18} />
+              <span className="hidden sm:inline">Recurring</span>
+            </button>
+            <button 
+              onClick={() => setShowAddForm(true)}
+              className="btn-primary flex items-center space-x-2 text-sm"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Add Transaction</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Budget Overview */}
@@ -272,21 +366,34 @@ export default function Budget() {
                 <input
                   type="text"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value })
+                    if (formErrors.description) setFormErrors({ ...formErrors, description: '' })
+                  }}
+                  className={`input-field ${formErrors.description ? 'border-red-500' : ''}`}
                   required
                 />
+                {formErrors.description && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Amount ($)</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, amount: e.target.value })
+                    if (formErrors.amount) setFormErrors({ ...formErrors, amount: '' })
+                  }}
+                  className={`input-field ${formErrors.amount ? 'border-red-500' : ''}`}
                   required
                 />
+                {formErrors.amount && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.amount}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Category</label>
@@ -328,16 +435,69 @@ export default function Budget() {
         </div>
       )}
 
+      {/* Recurring Transactions Modal */}
+      <RecurringTransactionModal
+        isOpen={showRecurringModal}
+        onClose={() => setShowRecurringModal(false)}
+        onSave={handleSaveRecurring}
+        user={user}
+      />
+
+      {/* Recurring Transactions */}
+      {recurringTransactions.length > 0 && (
+        <div className="card">
+          <h2 className="text-xl font-semibold mb-4 flex items-center space-x-2">
+            <Repeat size={20} />
+            <span>Recurring Transactions</span>
+          </h2>
+          <div className="space-y-2">
+            {recurringTransactions.map((recurring) => (
+              <div key={recurring.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div>
+                  <p className="font-medium">{recurring.description}</p>
+                  <p className="text-sm text-gray-500">
+                    ${Math.abs(recurring.amount).toFixed(2)} • {recurring.frequency} • {recurring.category}
+                  </p>
+                </div>
+                <span className={`px-2 py-1 rounded text-xs ${recurring.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
+                  {recurring.enabled ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search and Filter */}
+      {transactions.length > 0 && (
+        <SearchFilter
+          onSearch={setSearchTerm}
+          onFilter={setFilterCategory}
+          placeholder="Search transactions..."
+          filterOptions={[
+            { label: 'All', value: null },
+            ...categories.map(cat => ({ label: cat, value: cat })),
+          ]}
+          activeFilter={filterCategory}
+        />
+      )}
+
       {/* Recent Transactions */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Recent Transactions {filteredTransactions.length !== transactions.length && `(${filteredTransactions.length} of ${transactions.length})`}
+        </h2>
         <div className="space-y-3">
           {transactions.length === 0 ? (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No transactions yet. Add your first transaction!
             </p>
+          ) : filteredTransactions.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+              No transactions match your search criteria.
+            </p>
           ) : (
-            transactions.map((transaction) => (
+            filteredTransactions.map((transaction) => (
             <div
               key={transaction.id}
               className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"

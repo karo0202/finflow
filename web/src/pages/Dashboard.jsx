@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getPortfolio, getTransactions, getGoals } from '../services/firestore'
 import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { DashboardSkeleton } from '../components/LoadingSkeleton'
 import toast from 'react-hot-toast'
 
 const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
@@ -92,11 +93,7 @@ export default function Dashboard() {
   })()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   const stats = [

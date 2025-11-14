@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getPortfolio, addHolding, deleteHolding } from '../services/firestore'
-import { Plus, TrendingUp, TrendingDown, Edit, Trash2, X } from 'lucide-react'
+import { getPortfolio, addHolding, deleteHolding, updatePortfolio } from '../services/firestore'
+import { Plus, TrendingUp, TrendingDown, Edit, Trash2, X, Download, FileText, RefreshCw } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import ConfirmDialog from '../components/ConfirmDialog'
+import SearchFilter from '../components/SearchFilter'
+import { validateAmount } from '../utils/validation'
+import { exportPortfolioToCSV } from '../utils/export'
+import { generatePortfolioPDF } from '../utils/pdfExport'
+import { getMultiplePrices } from '../services/marketData'
 import toast from 'react-hot-toast'
 
 export default function Portfolio() {
@@ -10,6 +16,8 @@ export default function Portfolio() {
   const [holdings, setHoldings] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [holdingToDelete, setHoldingToDelete] = useState(null)
   const [formData, setFormData] = useState({
     symbol: '',
     name: '',
@@ -17,10 +25,26 @@ export default function Portfolio() {
     price: '',
     type: 'stock', // 'stock' or 'crypto'
   })
+  const [formErrors, setFormErrors] = useState({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterType, setFilterType] = useState(null)
+  const [updatingPrices, setUpdatingPrices] = useState(false)
 
   useEffect(() => {
     fetchPortfolio()
   }, [user])
+
+  // Auto-update prices every 5 minutes
+  useEffect(() => {
+    if (holdings.length === 0 || !user) return
+    
+    const interval = setInterval(() => {
+      updateMarketPrices()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdings.length, user])
 
   const fetchPortfolio = async () => {
     if (!user) {
@@ -39,14 +63,44 @@ export default function Portfolio() {
     }
   }
 
+  const validateForm = () => {
+    const errors = {}
+    
+    if (!formData.symbol.trim()) {
+      errors.symbol = 'Symbol is required'
+    }
+    
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required'
+    }
+    
+    const sharesValidation = validateAmount(formData.shares)
+    if (!sharesValidation.valid) {
+      errors.shares = sharesValidation.message
+    }
+    
+    const priceValidation = validateAmount(formData.price)
+    if (!priceValidation.valid) {
+      errors.price = priceValidation.message
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handleAddHolding = async (e) => {
     e.preventDefault()
     if (!user) return
 
+    if (!validateForm()) {
+      toast.error('Please fix form errors')
+      return
+    }
+
     try {
       const holding = {
-        symbol: formData.symbol.toUpperCase(),
-        name: formData.name,
+        symbol: formData.symbol.toUpperCase().trim(),
+        name: formData.name.trim(),
         type: formData.type,
         price: parseFloat(formData.price),
         shares: formData.type === 'stock' ? parseFloat(formData.shares) : undefined,
@@ -59,25 +113,87 @@ export default function Portfolio() {
       toast.success('Holding added successfully!')
       setShowAddForm(false)
       setFormData({ symbol: '', name: '', shares: '', price: '', type: 'stock' })
+      setFormErrors({})
       fetchPortfolio()
     } catch (error) {
       console.error('Error adding holding:', error)
-      toast.error('Failed to add holding')
+      toast.error(error.message || 'Failed to add holding')
     }
   }
 
-  const handleDeleteHolding = async (holdingId) => {
-    if (!user || !confirm('Are you sure you want to delete this holding?')) return
+  const handleDeleteClick = (holdingId) => {
+    setHoldingToDelete(holdingId)
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!user || !holdingToDelete) return
 
     try {
-      await deleteHolding(user.uid, holdingId)
+      await deleteHolding(user.uid, holdingToDelete)
       toast.success('Holding deleted successfully!')
+      setShowDeleteConfirm(false)
+      setHoldingToDelete(null)
       fetchPortfolio()
     } catch (error) {
       console.error('Error deleting holding:', error)
       toast.error('Failed to delete holding')
     }
   }
+
+  const updateMarketPrices = async () => {
+    if (!user || holdings.length === 0) return
+    
+    setUpdatingPrices(true)
+    try {
+      const symbols = holdings.map(h => h.symbol)
+      const prices = await getMultiplePrices(symbols)
+      
+      const updatedHoldings = holdings.map(holding => {
+        const priceData = prices.find(p => p.symbol === holding.symbol)
+        if (priceData) {
+          const newPrice = priceData.price
+          const quantity = holding.shares || holding.amount || 0
+          const newValue = newPrice * quantity
+          const change = priceData.changePercent || 0
+          
+          return {
+            ...holding,
+            price: newPrice,
+            value: newValue,
+            change: change.toFixed(2),
+          }
+        }
+        return holding
+      })
+      
+      const totalValue = updatedHoldings.reduce((sum, h) => sum + (h.value || 0), 0)
+      
+      await updatePortfolio(user.uid, {
+        holdings: updatedHoldings,
+        totalValue,
+      })
+      
+      setHoldings(updatedHoldings)
+      toast.success('Portfolio prices updated!')
+    } catch (error) {
+      console.error('Error updating prices:', error)
+      toast.error('Failed to update prices')
+    } finally {
+      setUpdatingPrices(false)
+    }
+  }
+
+  // Filter holdings based on search and filter
+  const filteredHoldings = holdings.filter(holding => {
+    const matchesSearch = searchTerm === '' || 
+      holding.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      holding.name.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = filterType === null || holding.type === filterType
+    
+    return matchesSearch && matchesFilter
+  })
 
   const portfolioHistory = [
     { date: 'Jan', value: 42000 },
@@ -113,13 +229,49 @@ export default function Portfolio() {
             Track and manage your investments
           </p>
         </div>
-        <button 
-          onClick={() => setShowAddForm(true)}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>Add Holding</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button 
+              onClick={() => exportPortfolioToCSV(holdings)}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={holdings.length === 0}
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  await generatePortfolioPDF({ totalValue }, holdings)
+                  toast.success('PDF generated!')
+                } catch (error) {
+                  toast.error('Failed to generate PDF')
+                }
+              }}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={holdings.length === 0}
+            >
+              <FileText size={18} />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            <button 
+              onClick={updateMarketPrices}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={updatingPrices || holdings.length === 0}
+            >
+              <RefreshCw size={18} className={updatingPrices ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Update Prices</span>
+            </button>
+            <button 
+              onClick={() => setShowAddForm(true)}
+              className="btn-primary flex items-center space-x-2 text-sm"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Add Holding</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Portfolio Summary */}
@@ -204,20 +356,34 @@ export default function Portfolio() {
                 <input
                   type="text"
                   value={formData.symbol}
-                  onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, symbol: e.target.value })
+                    if (formErrors.symbol) setFormErrors({ ...formErrors, symbol: '' })
+                  }}
+                  className={`input-field ${formErrors.symbol ? 'border-red-500' : ''}`}
+                  placeholder="AAPL"
                   required
                 />
+                {formErrors.symbol && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.symbol}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Name</label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value })
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: '' })
+                  }}
+                  className={`input-field ${formErrors.name ? 'border-red-500' : ''}`}
+                  placeholder="Apple Inc."
                   required
                 />
+                {formErrors.name && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -226,22 +392,38 @@ export default function Portfolio() {
                 <input
                   type="number"
                   step="0.0001"
+                  min="0"
                   value={formData.shares}
-                  onChange={(e) => setFormData({ ...formData, shares: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, shares: e.target.value })
+                    if (formErrors.shares) setFormErrors({ ...formErrors, shares: '' })
+                  }}
+                  className={`input-field ${formErrors.shares ? 'border-red-500' : ''}`}
+                  placeholder="10"
                   required
                 />
+                {formErrors.shares && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.shares}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Price per {formData.type === 'stock' ? 'Share' : 'Coin'}</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, price: e.target.value })
+                    if (formErrors.price) setFormErrors({ ...formErrors, price: '' })
+                  }}
+                  className={`input-field ${formErrors.price ? 'border-red-500' : ''}`}
+                  placeholder="185.50"
                   required
                 />
+                {formErrors.price && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.price}</p>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button type="submit" className="btn-primary flex-1">Add</button>
@@ -258,24 +440,62 @@ export default function Portfolio() {
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false)
+          setHoldingToDelete(null)
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Holding"
+        message="Are you sure you want to delete this holding? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Search and Filter */}
+      {holdings.length > 0 && (
+        <SearchFilter
+          onSearch={setSearchTerm}
+          onFilter={setFilterType}
+          placeholder="Search by symbol or name..."
+          filterOptions={[
+            { label: 'All', value: null },
+            { label: 'Stocks', value: 'stock' },
+            { label: 'Crypto', value: 'crypto' },
+          ]}
+          activeFilter={filterType}
+        />
+      )}
+
       {/* Holdings Table */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Holdings</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Name</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Quantity</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Price</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Value</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Change</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {holdings.map((holding) => (
+        <h2 className="text-xl font-semibold mb-4">Holdings {filteredHoldings.length !== holdings.length && `(${filteredHoldings.length} of ${holdings.length})`}</h2>
+        {holdings.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">No holdings yet. Add your first investment!</p>
+            <button onClick={() => setShowAddForm(true)} className="btn-primary">
+              Add Your First Holding
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Name</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Quantity</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Price</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Value</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Change</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredHoldings.map((holding) => (
                 <tr key={holding.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="py-3 px-4">
                     <span className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</span>
@@ -299,7 +519,7 @@ export default function Portfolio() {
                         <Edit size={16} />
                       </button>
                       <button 
-                        onClick={() => handleDeleteHolding(holding.id)}
+                        onClick={() => handleDeleteClick(holding.id)}
                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-red-600"
                       >
                         <Trash2 size={16} />
@@ -307,12 +527,14 @@ export default function Portfolio() {
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
 

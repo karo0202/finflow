@@ -324,3 +324,69 @@ export const subscribeToTransactions = (userId, callback) => {
   })
 }
 
+// Recurring transactions operations
+export const getRecurringTransactions = async (userId) => {
+  try {
+    const recurringRef = collection(db, 'recurringTransactions')
+    const q = query(
+      recurringRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    )
+    const querySnapshot = await getDocs(q)
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      startDate: doc.data().startDate?.toDate?.() || doc.data().startDate,
+      endDate: doc.data().endDate?.toDate?.() || doc.data().endDate,
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+    }))
+  } catch (error) {
+    console.error('Error getting recurring transactions:', error)
+    return []
+  }
+}
+
+export const addRecurringTransaction = async (userId, recurringTransaction) => {
+  try {
+    const recurringRef = collection(db, 'recurringTransactions')
+    const docRef = await addDoc(recurringRef, {
+      userId,
+      ...recurringTransaction,
+      startDate: Timestamp.fromDate(new Date(recurringTransaction.startDate)),
+      endDate: recurringTransaction.endDate 
+        ? Timestamp.fromDate(new Date(recurringTransaction.endDate))
+        : null,
+      createdAt: Timestamp.now(),
+    })
+    return docRef.id
+  } catch (error) {
+    console.error('Error adding recurring transaction:', error)
+    throw error
+  }
+}
+
+export const updateRecurringTransaction = async (recurringId, updates) => {
+  try {
+    const recurringRef = doc(db, 'recurringTransactions', recurringId)
+    await updateDoc(recurringRef, {
+      ...updates,
+      startDate: updates.startDate ? Timestamp.fromDate(new Date(updates.startDate)) : undefined,
+      endDate: updates.endDate ? Timestamp.fromDate(new Date(updates.endDate)) : undefined,
+    })
+  } catch (error) {
+    console.error('Error updating recurring transaction:', error)
+    throw error
+  }
+}
+
+export const deleteRecurringTransaction = async (recurringId) => {
+  try {
+    const recurringRef = doc(db, 'recurringTransactions', recurringId)
+    await deleteDoc(recurringRef)
+  } catch (error) {
+    console.error('Error deleting recurring transaction:', error)
+    throw error
+  }
+}
+

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getGoals, addGoal, updateGoal, deleteGoal } from '../services/firestore'
-import { Plus, Target, Calendar, DollarSign, TrendingUp, X } from 'lucide-react'
+import { Plus, Target, Calendar, DollarSign, TrendingUp, X, Download, FileText } from 'lucide-react'
+import SearchFilter from '../components/SearchFilter'
+import { generateGoalsPDF } from '../utils/pdfExport'
 import toast from 'react-hot-toast'
 
 export default function Goals() {
@@ -16,6 +18,11 @@ export default function Goals() {
     deadline: '',
     category: 'Savings',
   })
+  const [formErrors, setFormErrors] = useState({})
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [goalToDelete, setGoalToDelete] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterCategory, setFilterCategory] = useState(null)
 
   useEffect(() => {
     fetchGoals()
@@ -45,10 +52,30 @@ export default function Goals() {
     e.preventDefault()
     if (!user) return
 
+    // Validate
+    const errors = {}
+    if (!formData.name.trim()) {
+      errors.name = 'Goal name is required'
+    }
+    const targetValidation = validateAmount(formData.target)
+    if (!targetValidation.valid) {
+      errors.target = targetValidation.message
+    }
+    const dateValidation = validateDate(formData.deadline)
+    if (!dateValidation.valid) {
+      errors.deadline = dateValidation.message
+    }
+    
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix form errors')
+      return
+    }
+
     try {
       await addGoal(user.uid, {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         target: parseFloat(formData.target),
         deadline: formData.deadline,
         category: formData.category,
@@ -57,10 +84,11 @@ export default function Goals() {
       toast.success('Goal created successfully!')
       setShowAddForm(false)
       setFormData({ name: '', description: '', target: '', deadline: '', category: 'Savings' })
+      setFormErrors({})
       fetchGoals()
     } catch (error) {
       console.error('Error adding goal:', error)
-      toast.error('Failed to create goal')
+      toast.error(error.message || 'Failed to create goal')
     }
   }
 
@@ -77,18 +105,53 @@ export default function Goals() {
     }
   }
 
-  const handleDeleteGoal = async (goalId) => {
-    if (!user || !confirm('Are you sure you want to delete this goal?')) return
+  const handleDeleteClick = (goalId) => {
+    setGoalToDelete(goalId)
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!user || !goalToDelete) return
 
     try {
-      await deleteGoal(goalId)
+      await deleteGoal(goalToDelete)
       toast.success('Goal deleted!')
+      setShowDeleteConfirm(false)
+      setGoalToDelete(null)
       fetchGoals()
     } catch (error) {
       console.error('Error deleting goal:', error)
       toast.error('Failed to delete goal')
     }
   }
+
+  const handleExportGoals = () => {
+    const csvData = goals.map(g => ({
+      Name: g.name,
+      Description: g.description,
+      Category: g.category,
+      Current: g.current || 0,
+      Target: g.target,
+      Progress: `${((g.current || 0) / (g.target || 1)) * 100}%`,
+      Deadline: g.deadline ? new Date(g.deadline).toLocaleDateString() : 'N/A',
+    }))
+    exportToCSV(csvData, `goals-${new Date().toISOString().split('T')[0]}.csv`)
+  }
+
+  // Filter goals
+  const filteredGoals = goals.filter(goal => {
+    const matchesSearch = searchTerm === '' || 
+      goal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      goal.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      goal.category.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = filterCategory === null || goal.category === filterCategory
+    
+    return matchesSearch && matchesFilter
+  })
+
+  // Get unique categories for filter
+  const categories = [...new Set(goals.map(g => g.category))]
 
   const totalGoals = goals.length
   const completedGoals = goals.filter(g => (g.progress || 0) >= 100).length
@@ -113,13 +176,41 @@ export default function Goals() {
             Track your financial goals and milestones
           </p>
         </div>
-        <button 
-          onClick={() => setShowAddForm(true)}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>New Goal</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button 
+              onClick={handleExportGoals}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={goals.length === 0}
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  await generateGoalsPDF(goals)
+                  toast.success('PDF generated!')
+                } catch (error) {
+                  toast.error('Failed to generate PDF')
+                }
+              }}
+              className="btn-secondary flex items-center space-x-2 text-sm"
+              disabled={goals.length === 0}
+            >
+              <FileText size={18} />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            <button 
+              onClick={() => setShowAddForm(true)}
+              className="btn-primary flex items-center space-x-2 text-sm"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">New Goal</span>
+              <span className="sm:hidden">New</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Goals Overview */}
@@ -162,6 +253,21 @@ export default function Goals() {
         </div>
       </div>
 
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false)
+          setGoalToDelete(null)
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Goal"
+        message="Are you sure you want to delete this goal? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
       {/* Add Goal Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -181,10 +287,16 @@ export default function Goals() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value })
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: '' })
+                  }}
+                  className={`input-field ${formErrors.name ? 'border-red-500' : ''}`}
                   required
                 />
+                {formErrors.name && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Description</label>
@@ -200,21 +312,35 @@ export default function Goals() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.target}
-                  onChange={(e) => setFormData({ ...formData, target: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, target: e.target.value })
+                    if (formErrors.target) setFormErrors({ ...formErrors, target: '' })
+                  }}
+                  className={`input-field ${formErrors.target ? 'border-red-500' : ''}`}
                   required
                 />
+                {formErrors.target && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.target}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Deadline</label>
                 <input
                   type="date"
                   value={formData.deadline}
-                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                  className="input-field"
+                  onChange={(e) => {
+                    setFormData({ ...formData, deadline: e.target.value })
+                    if (formErrors.deadline) setFormErrors({ ...formErrors, deadline: '' })
+                  }}
+                  className={`input-field ${formErrors.deadline ? 'border-red-500' : ''}`}
+                  min={new Date().toISOString().split('T')[0]}
                   required
                 />
+                {formErrors.deadline && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.deadline}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Category</label>
@@ -319,7 +445,12 @@ export default function Goals() {
                   onClick={() => {
                     const newCurrent = prompt('Update current amount:', goal.current)
                     if (newCurrent !== null && !isNaN(newCurrent)) {
-                      handleUpdateGoalProgress(goal.id, parseFloat(newCurrent))
+                      const amount = parseFloat(newCurrent)
+                      if (amount >= 0) {
+                        handleUpdateGoalProgress(goal.id, amount)
+                      } else {
+                        toast.error('Amount must be positive')
+                      }
                     }
                   }}
                   className="text-xs text-primary-600 hover:text-primary-700"
@@ -327,7 +458,7 @@ export default function Goals() {
                   Update Progress
                 </button>
                 <button
-                  onClick={() => handleDeleteGoal(goal.id)}
+                  onClick={() => handleDeleteClick(goal.id)}
                   className="text-xs text-red-600 hover:text-red-700"
                 >
                   Delete
@@ -335,7 +466,8 @@ export default function Goals() {
               </div>
             </div>
           )
-        })}
+        ))
+        )}
       </div>
     </div>
   )
