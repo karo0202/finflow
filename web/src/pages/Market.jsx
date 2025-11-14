@@ -19,10 +19,10 @@ export default function Market() {
 
   useEffect(() => {
     fetchMarketData()
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 60 seconds (reduced frequency to avoid rate limits)
     const interval = setInterval(() => {
       fetchMarketData()
-    }, 30000)
+    }, 60000) // Changed from 30s to 60s
 
     return () => clearInterval(interval)
   }, [])
@@ -105,10 +105,12 @@ export default function Market() {
   }
 
   const formatChange = (change, changePercent) => {
-    const isPositive = change >= 0
+    const changeNum = parseFloat(change) || 0
+    const changePercentNum = parseFloat(changePercent) || 0
+    const isPositive = changeNum >= 0
     return (
       <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-        {isPositive ? '+' : ''}{formatPrice(change)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+        {isPositive ? '+' : ''}{formatPrice(changeNum)} ({isPositive ? '+' : ''}{changePercentNum.toFixed(2)}%)
       </span>
     )
   }
@@ -168,7 +170,7 @@ export default function Market() {
                 <h3 className="text-2xl font-bold">{searchResult.symbol}</h3>
                 <p className="text-3xl font-bold mt-2">{formatPrice(searchResult.price)}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {formatChange(searchResult.change, searchResult.changePercent)}
+                  {formatChange(searchResult.change || 0, searchResult.changePercent || 0)}
                 </p>
               </div>
               {searchResult.change >= 0 ? (
@@ -238,9 +240,9 @@ export default function Market() {
                     {stock.change >= 0 ? '+' : ''}{formatPrice(stock.change)}
                   </td>
                   <td className={`py-3 px-4 text-right ${
-                    stock.changePercent >= 0 ? 'text-green-600' : 'text-red-600'
+                    (stock.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                    {(stock.changePercent || 0) >= 0 ? '+' : ''}{((stock.changePercent || 0)).toFixed(2)}%
                   </td>
                 </tr>
               ))}
@@ -291,9 +293,9 @@ export default function Market() {
                     {coin.change >= 0 ? '+' : ''}{formatPrice(coin.change)}
                   </td>
                   <td className={`py-3 px-4 text-right ${
-                    coin.changePercent >= 0 ? 'text-green-600' : 'text-red-600'
+                    (coin.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {coin.changePercent >= 0 ? '+' : ''}{coin.changePercent.toFixed(2)}%
+                    {(coin.changePercent || 0) >= 0 ? '+' : ''}{((coin.changePercent || 0)).toFixed(2)}%
                   </td>
                 </tr>
               ))}
