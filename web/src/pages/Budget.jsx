@@ -154,7 +154,7 @@ export default function Budget() {
   })
 
   // Get unique categories for filter
-  const categories = [...new Set(transactions.map(t => t.category))]
+  const filterCategories = [...new Set(transactions.map(t => t.category))]
 
   // Calculate categories from transactions
   const categoryMap = {}
@@ -476,7 +476,7 @@ export default function Budget() {
           placeholder="Search transactions..."
           filterOptions={[
             { label: 'All', value: null },
-            ...categories.map(cat => ({ label: cat, value: cat })),
+            ...filterCategories.map(cat => ({ label: cat, value: cat })),
           ]}
           activeFilter={filterCategory}
         />
