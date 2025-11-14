@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BookOpen, CheckCircle, Lock, Play, Award, TrendingUp, ExternalLink, Shield, FileText, Video, Link as LinkIcon } from 'lucide-react'
 
 export default function LearningHub() {
-  const [lessons, setLessons] = useState([
+  // Load completed lessons from localStorage
+  const [lessons, setLessons] = useState(() => {
+    const saved = localStorage.getItem('finflow_lessons_completed')
+    const completedIds = saved ? JSON.parse(saved) : []
+    
+    const allLessons = [
     {
       id: 1,
       title: 'Introduction to Personal Finance',
@@ -513,7 +518,20 @@ Source: FINRA Investment Strategies`
         ]
       }
     },
-  ])
+  ]
+
+    // Mark lessons as completed based on localStorage
+    return allLessons.map(lesson => ({
+      ...lesson,
+      completed: completedIds.includes(lesson.id)
+    }))
+  })
+
+  // Save completed lessons to localStorage
+  useEffect(() => {
+    const completedIds = lessons.filter(l => l.completed).map(l => l.id)
+    localStorage.setItem('finflow_lessons_completed', JSON.stringify(completedIds))
+  }, [lessons])
 
   const categories = ['All', 'Basics', 'Investing', 'Crypto', 'Taxes', 'Planning']
   const [selectedCategory, setSelectedCategory] = useState('All')
@@ -534,10 +552,21 @@ Source: FINRA Investment Strategies`
 
   const handleCompleteLesson = () => {
     if (selectedLesson) {
-      setLessons(lessons.map(l => 
-        l.id === selectedLesson.id ? { ...l, completed: true } : l
-      ))
+      setLessons(prevLessons => 
+        prevLessons.map(l => 
+          l.id === selectedLesson.id ? { ...l, completed: true } : l
+        )
+      )
       setSelectedLesson(null)
+    }
+  }
+
+  const handleResetProgress = () => {
+    if (window.confirm('Are you sure you want to reset all lesson progress? This cannot be undone.')) {
+      localStorage.removeItem('finflow_lessons_completed')
+      setLessons(prevLessons => 
+        prevLessons.map(l => ({ ...l, completed: false }))
+      )
     }
   }
 
@@ -653,14 +682,25 @@ Source: FINRA Investment Strategies`
 
       {/* Trust Badge */}
       <div className="card bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
-        <div className="flex items-center space-x-3">
-          <Shield className="text-green-600 dark:text-green-400" size={24} />
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">Trusted Sources</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              All content is based on official sources including SEC, FINRA, IRS, CFPB, Federal Reserve, and other government agencies.
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Shield className="text-green-600 dark:text-green-400" size={24} />
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Trusted Sources</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                All content is based on official sources including SEC, FINRA, IRS, CFPB, Federal Reserve, and other government agencies.
+              </p>
+            </div>
           </div>
+          {completedCount > 0 && (
+            <button
+              onClick={handleResetProgress}
+              className="text-xs text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 underline"
+              title="Reset all progress"
+            >
+              Reset Progress
+            </button>
+          )}
         </div>
       </div>
 
@@ -716,8 +756,9 @@ Source: FINRA Investment Strategies`
           <div
             key={lesson.id}
             className={`card relative ${
-              lesson.locked ? 'opacity-60' : 'hover:shadow-xl transition-shadow'
+              lesson.locked ? 'opacity-60' : 'hover:shadow-xl transition-shadow cursor-pointer'
             }`}
+            onClick={() => !lesson.locked && handleStartLesson(lesson)}
           >
             {lesson.locked && (
               <div className="absolute top-4 right-4">
@@ -753,7 +794,10 @@ Source: FINRA Investment Strategies`
               {lesson.description}
             </p>
             <button
-              onClick={() => handleStartLesson(lesson)}
+              onClick={(e) => {
+                e.stopPropagation() // Prevent card click
+                handleStartLesson(lesson)
+              }}
               disabled={lesson.locked}
               className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
                 lesson.locked
