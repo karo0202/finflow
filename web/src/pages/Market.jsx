@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Search, RefreshCw, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, Search, RefreshCw, DollarSign, Info, AlertCircle } from 'lucide-react'
 import { getStockPrice, getCryptoPrice, getMultiplePrices } from '../services/marketData'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import toast from 'react-hot-toast'
@@ -143,6 +143,29 @@ export default function Market() {
         </button>
       </div>
 
+      {/* Data Source Disclaimer */}
+      <div className="card bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <div className="flex items-start space-x-3">
+          <Info className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" size={20} />
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">About Price Data</h3>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Prices are sourced from <strong>Yahoo Finance</strong> (stocks) and <strong>Binance/CoinGecko</strong> (crypto) APIs. 
+              Prices may differ slightly from exchange platforms like OKX due to:
+            </p>
+            <ul className="text-sm text-gray-600 dark:text-gray-400 mt-2 ml-4 list-disc space-y-1">
+              <li>Different liquidity and trading volumes</li>
+              <li>Exchange-specific fees and spreads</li>
+              <li>Regional market conditions</li>
+              <li>Data update frequency (prices update every 60 seconds)</li>
+            </ul>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+              For trading decisions, always check prices directly on your exchange platform.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Search */}
       <div className="card">
         <h2 className="text-xl font-semibold mb-4">Search Symbol</h2>
@@ -167,7 +190,18 @@ export default function Market() {
           <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-bold">{searchResult.symbol}</h3>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-2xl font-bold">{searchResult.symbol}</h3>
+                  {searchResult.source && (
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      searchResult.isReal 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                    }`}>
+                      {searchResult.source}
+                    </span>
+                  )}
+                </div>
                 <p className="text-3xl font-bold mt-2">{formatPrice(searchResult.price)}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {formatChange(searchResult.change || 0, searchResult.changePercent || 0)}
@@ -214,6 +248,7 @@ export default function Market() {
                 <th className="text-right py-3 px-4 text-sm font-semibold">Price</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold">Change</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold">Change %</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold">Source</th>
               </tr>
             </thead>
             <tbody>
@@ -243,6 +278,15 @@ export default function Market() {
                     (stock.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {(stock.changePercent || 0) >= 0 ? '+' : ''}{((stock.changePercent || 0)).toFixed(2)}%
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      stock.isReal 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                    }`}>
+                      {stock.source || 'Unknown'}
+                    </span>
                   </td>
                 </tr>
               ))}
