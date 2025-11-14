@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getBudget, getTransactions, addTransaction, getRecurringTransactions } from '../services/firestore'
-import { Plus, DollarSign, TrendingDown, TrendingUp, X, Download, FileText, Repeat } from 'lucide-react'
+import { getBudget, getTransactions, addTransaction, getRecurringTransactions, updateBudget } from '../services/firestore'
+import { Plus, DollarSign, TrendingDown, TrendingUp, X, Download, FileText, Repeat, Edit2, Save } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import SearchFilter from '../components/SearchFilter'
 import RecurringTransactionModal from '../components/RecurringTransactionModal'
@@ -35,6 +35,8 @@ export default function Budget() {
   const [filterCategory, setFilterCategory] = useState(null)
   const [showRecurringModal, setShowRecurringModal] = useState(false)
   const [recurringTransactions, setRecurringTransactions] = useState([])
+  const [editingSalary, setEditingSalary] = useState(false)
+  const [salaryInput, setSalaryInput] = useState('')
 
   useEffect(() => {
     fetchBudgetData()
@@ -140,6 +142,40 @@ export default function Budget() {
     if (!user) return
     await addRecurringTransaction(user.uid, recurringData)
     await fetchRecurringTransactions()
+  }
+
+  const handleEditSalary = () => {
+    setSalaryInput(budget.income.toString())
+    setEditingSalary(true)
+  }
+
+  const handleSaveSalary = async () => {
+    if (!user) return
+
+    const salaryAmount = parseFloat(salaryInput)
+    if (isNaN(salaryAmount) || salaryAmount < 0) {
+      toast.error('Please enter a valid salary amount')
+      return
+    }
+
+    try {
+      await updateBudget(user.uid, { income: salaryAmount })
+      setBudget(prev => ({
+        ...prev,
+        income: salaryAmount,
+        savings: salaryAmount - prev.expenses,
+      }))
+      setEditingSalary(false)
+      toast.success('Salary updated successfully!')
+    } catch (error) {
+      console.error('Error updating salary:', error)
+      toast.error('Failed to update salary')
+    }
+  }
+
+  const handleCancelEditSalary = () => {
+    setEditingSalary(false)
+    setSalaryInput('')
   }
 
   // Filter transactions
