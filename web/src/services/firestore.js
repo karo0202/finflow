@@ -153,6 +153,7 @@ export const getGoals = async (userId) => {
     const goalsRef = collection(db, 'goals')
     // Try with orderBy first, fallback to without if index doesn't exist
     let querySnapshot
+    let needsClientSort = false
     try {
       const q = query(
         goalsRef,
@@ -163,6 +164,7 @@ export const getGoals = async (userId) => {
     } catch (indexError) {
       // If index doesn't exist, query without orderBy and sort client-side
       console.warn('Firestore index not found, sorting client-side:', indexError.message)
+      needsClientSort = true
       const q = query(
         goalsRef,
         where('userId', '==', userId)
@@ -177,20 +179,8 @@ export const getGoals = async (userId) => {
       createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
     }))
     
-    // Sort client-side if orderBy wasn't used (fallback case)
-    // Check if goals need sorting by checking if they're already sorted
-    const needsSort = goals.some((goal, index) => {
-      if (index === 0) return false
-      const prevDate = goals[index - 1].createdAt instanceof Date 
-        ? goals[index - 1].createdAt 
-        : new Date(goals[index - 1].createdAt || 0)
-      const currDate = goal.createdAt instanceof Date 
-        ? goal.createdAt 
-        : new Date(goal.createdAt || 0)
-      return currDate > prevDate
-    })
-    
-    if (needsSort) {
+    // Sort client-side if orderBy wasn't used
+    if (needsClientSort) {
       goals.sort((a, b) => {
         const aDate = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt || 0)
         const bDate = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt || 0)
