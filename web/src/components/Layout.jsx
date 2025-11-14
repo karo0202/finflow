@@ -68,7 +68,7 @@ export default function Layout({ children }) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="lg:hidden fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-16"
+            className="lg:hidden fixed inset-y-0 left-0 z-40 w-64 glass-effect border-r border-gray-200/50 dark:border-gray-700/50 pt-16 shadow-xl"
           >
             <nav className="p-4 space-y-2">
               {navigation.map((item) => {
@@ -79,10 +79,10 @@ export default function Layout({ children }) {
                     key={item.name}
                     to={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                       active
-                        ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30 scale-105'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 hover:scale-105'
                     }`}
                   >
                     <Icon size={20} />
