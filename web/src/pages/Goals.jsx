@@ -374,99 +374,104 @@ export default function Goals() {
 
       {/* Goals List */}
       <div className="grid md:grid-cols-2 gap-6">
-        {goals.map((goal) => {
-          const deadlineDate = goal.deadline instanceof Date ? goal.deadline : new Date(goal.deadline)
-          const daysRemaining = Math.ceil(
-            (deadlineDate - new Date()) / (1000 * 60 * 60 * 24)
-          )
-          const monthlyNeeded = daysRemaining > 0
-            ? (goal.target - goal.current) / Math.ceil(daysRemaining / 30)
-            : 0
+        {filteredGoals.length === 0 && goals.length > 0 ? (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400">No goals match your search criteria.</p>
+          </div>
+        ) : (
+          filteredGoals.map((goal) => {
+            const deadlineDate = goal.deadline instanceof Date ? goal.deadline : new Date(goal.deadline)
+            const daysRemaining = Math.ceil(
+              (deadlineDate - new Date()) / (1000 * 60 * 60 * 24)
+            )
+            const monthlyNeeded = daysRemaining > 0
+              ? (goal.target - goal.current) / Math.ceil(daysRemaining / 30)
+              : 0
 
-          return (
-            <div key={goal.id} className="card">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {goal.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {goal.description}
-                  </p>
+            return (
+              <div key={goal.id} className="card">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {goal.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {goal.description}
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium">
+                    {goal.category}
+                  </span>
                 </div>
-                <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium">
-                  {goal.category}
-                </span>
-              </div>
 
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Progress</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {goal.progress}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-primary-600 h-3 rounded-full transition-all"
-                    style={{ width: `${Math.min(goal.progress, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    ${goal.current.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    ${goal.target.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <Calendar size={16} />
-                  <span>
-                    {daysRemaining > 0
-                      ? `${daysRemaining} days remaining`
-                      : 'Deadline passed'}
-                  </span>
-                </div>
-                {monthlyNeeded > 0 && (
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Need: </span>
-                    <span className="font-semibold text-primary-600">
-                      ${Math.ceil(monthlyNeeded).toLocaleString()}/mo
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Progress</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {goal.progress}%
                     </span>
                   </div>
-                )}
-              </div>
-              <div className="mt-2 flex space-x-2">
-                <button
-                  onClick={() => {
-                    const newCurrent = prompt('Update current amount:', goal.current)
-                    if (newCurrent !== null && !isNaN(newCurrent)) {
-                      const amount = parseFloat(newCurrent)
-                      if (amount >= 0) {
-                        handleUpdateGoalProgress(goal.id, amount)
-                      } else {
-                        toast.error('Amount must be positive')
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div
+                      className="bg-primary-600 h-3 rounded-full transition-all"
+                      style={{ width: `${Math.min(goal.progress, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      ${goal.current.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      ${goal.target.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Calendar size={16} />
+                    <span>
+                      {daysRemaining > 0
+                        ? `${daysRemaining} days remaining`
+                        : 'Deadline passed'}
+                    </span>
+                  </div>
+                  {monthlyNeeded > 0 && (
+                    <div className="text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Need: </span>
+                      <span className="font-semibold text-primary-600">
+                        ${Math.ceil(monthlyNeeded).toLocaleString()}/mo
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex space-x-2">
+                  <button
+                    onClick={() => {
+                      const newCurrent = prompt('Update current amount:', goal.current)
+                      if (newCurrent !== null && !isNaN(newCurrent)) {
+                        const amount = parseFloat(newCurrent)
+                        if (amount >= 0) {
+                          handleUpdateGoalProgress(goal.id, amount)
+                        } else {
+                          toast.error('Amount must be positive')
+                        }
                       }
-                    }
-                  }}
-                  className="text-xs text-primary-600 hover:text-primary-700"
-                >
-                  Update Progress
-                </button>
-                <button
-                  onClick={() => handleDeleteClick(goal.id)}
-                  className="text-xs text-red-600 hover:text-red-700"
-                >
-                  Delete
-                </button>
+                    }}
+                    className="text-xs text-primary-600 hover:text-primary-700"
+                  >
+                    Update Progress
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(goal.id)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          )
-        ))
+            )
+          })
         )}
       </div>
     </div>
